@@ -19,8 +19,12 @@ namespace RichRun
         [SerializeField] PlayerController player;
 
         [Header("Уровни")]
-        [SerializeField] Transform levelRoot;
-        [SerializeField] LevelInfo[] levelPrefabs;
+        [Tooltip("Объект со скриптом LevelManager. Он и спавнит префаб уровня.")]
+        [SerializeField] ButchersGames.LevelManager levelManager;
+
+        [Header("Отладка")]
+        [Tooltip("Стартовать забег сразу по Play, без касания экрана.")]
+        [SerializeField] bool autoStart;
 
         public GameConfig Config => config;
         public PlayerController Player => player;
@@ -66,14 +70,37 @@ namespace RichRun
 
         void LoadLevel()
         {
-            if (levelPrefabs == null || levelPrefabs.Length == 0) return;
+            if (!levelManager)
+            {
+                Debug.LogError("[RichRun] GameManager: не назначен Level Manager.", this);
+                return;
+            }
 
-            var prefab = levelPrefabs[Save.Level % levelPrefabs.Length];
-            var level = Instantiate(prefab, levelRoot ? levelRoot : transform);
-            player.Place(level.PlayerStart, level.RoadHalfWidth > 0f ? level.RoadHalfWidth : config.RoadHalfWidth);
+            // С выключенным Editor Mode спавнит уровень сам; с включённым —
+            // экземпляр уже лежит в сцене после кнопок << >>, и Init его не трогает.
+            levelManager.Init();
+
+            var info = levelManager.GetComponentInChildren<LevelInfo>();
+            if (!info)
+            {
+                Debug.LogError("[RichRun] В уровне нет LevelInfo. Повесь его на корень префаба " +
+                               "и заполни Player Start.", levelManager);
+                return;
+            }
+
+            player.Place(info.PlayerStart,
+                info.RoadHalfWidth > 0f ? info.RoadHalfWidth : config.RoadHalfWidth);
         }
 
         // --- поток игры -------------------------------------------------
+
+        // Запуск живёт здесь, а не в UI: панель со стартом может отсутствовать,
+        // а игра всё равно обязана начинаться по касанию.
+        void Update()
+        {
+            if (State != GameState.Ready) return;
+            if (autoStart || SwipeInput.Tapped) StartRun();
+        }
 
         public void StartRun()
         {

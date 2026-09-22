@@ -12,6 +12,9 @@ namespace RichRun
         [SerializeField] GameConfig config;
         [SerializeField] PlayerVisual visual;
 
+        [Tooltip("Писать в консоль каждый триггер. Только для отладки уровня.")]
+        [SerializeField] bool logTriggers;
+
         public PlayerVisual Visual => visual;
 
         GameManager _game;
@@ -68,8 +71,13 @@ namespace RichRun
 
         void OnTriggerEnter(Collider other)
         {
-            if (other.TryGetComponent(out ITrackTrigger trigger))
-                trigger.OnPlayerEnter(this);
+            bool handled = other.TryGetComponent(out ITrackTrigger trigger);
+
+            if (logTriggers)
+                Debug.Log($"[RichRun] касание: {other.name}, слой {LayerMask.LayerToName(other.gameObject.layer)}, " +
+                          (handled ? "обработчик найден" : "ITrackTrigger НЕ найден на этом объекте"), other);
+
+            if (handled) trigger.OnPlayerEnter(this);
         }
     }
 }

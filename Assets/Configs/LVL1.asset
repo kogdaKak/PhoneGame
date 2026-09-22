@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ButchersGames.LevelsList
   randomizedLvls: 0
   lvls:
-  - {fileID: 0}
+  - {fileID: 3805782548303152384, guid: abdab3451bd093144bb83cec3a42bb47, type: 3}

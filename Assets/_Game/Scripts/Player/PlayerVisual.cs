@@ -39,9 +39,13 @@ namespace RichRun
         GameManager _game;
         int _tier;
         int _step;
+        bool _animated;
 
         void Start()
         {
+            // Без контроллера Animator ругается на каждый SetFloat — проверяем один раз.
+            _animated = animator && animator.runtimeAnimatorController;
+
             _game = GameManager.Instance;
             _game.StateChanged += OnStateChanged;
             _game.TierChanged += OnTierChanged;
@@ -59,8 +63,8 @@ namespace RichRun
 
         void OnStateChanged(GameState state)
         {
-            // Аниматора может не быть: геймплей проверяется на капсуле до появления модели.
-            if (!animator) return;
+            // Контроллера может ещё не быть: модель уже стоит, а анимаций нет.
+            if (!_animated) return;
             animator.SetFloat(SpeedHash, state == GameState.Running ? 1f : 0f);
             if (state == GameState.Finished) animator.SetTrigger(WinHash);
         }
@@ -70,11 +74,15 @@ namespace RichRun
         void ApplyTier(int tier, bool celebrate)
         {
             _tier = tier;
+
+            // Комплектов может быть меньше, чем ступеней: тогда держим последний.
+            // Иначе на второй ступени персонаж просто исчезнет.
+            int outfit = Mathf.Min(tier, outfits.Length - 1);
             for (int i = 0; i < outfits.Length; i++)
-                if (outfits[i]) outfits[i].SetActive(i == tier);
+                if (outfits[i]) outfits[i].SetActive(i == outfit);
 
             SwapController(tier);
-            if (animator) animator.SetInteger(TierHash, tier);
+            if (_animated) animator.SetInteger(TierHash, tier);
 
             if (!celebrate) return;
             if (tierUpVfx) Vfx.Play(tierUpVfx, transform.position);
@@ -91,11 +99,12 @@ namespace RichRun
             var state = animator.GetCurrentAnimatorStateInfo(0);
             animator.runtimeAnimatorController = next;
             animator.Play(state.shortNameHash, 0, state.normalizedTime % 1f);
+            _animated = true;
         }
 
         public void PlayHit()
         {
-            if (animator) animator.SetTrigger(HitHash);
+            if (_animated) animator.SetTrigger(HitHash);
         }
 
         /// <summary>Вызывается Animation Event'ом на кадрах касания стопы.</summary>

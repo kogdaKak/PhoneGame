@@ -2,23 +2,32 @@ using UnityEngine;
 
 namespace RichRun
 {
-    /// <summary>Экран до старта: карта уровней и подсказка «проведите по экрану».</summary>
+    /// <summary>
+    /// Экран до старта: карта уровней и подсказка «проведите по экрану».
+    /// Только показывает и прячет — запуск забега делает GameManager,
+    /// поэтому без этой панели игра всё равно стартует.
+    /// </summary>
     public class StartPanel : MonoBehaviour
     {
         [SerializeField] GameObject root;
 
+        GameManager _game;
+
         void Start()
         {
-            root.SetActive(GameManager.Instance.State == GameState.Ready);
+            _game = GameManager.Instance;
+            _game.StateChanged += OnStateChanged;
+            OnStateChanged(_game.State);
         }
 
-        void Update()
+        void OnDestroy()
         {
-            if (!SwipeInput.Tapped) return;
+            if (_game != null) _game.StateChanged -= OnStateChanged;
+        }
 
-            GameManager.Instance.StartRun();
-            root.SetActive(false);
-            enabled = false;
+        void OnStateChanged(GameState state)
+        {
+            if (root) root.SetActive(state == GameState.Ready);
         }
     }
 }
