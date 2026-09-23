@@ -76,9 +76,18 @@ namespace RichRun
                 return;
             }
 
-            // С выключенным Editor Mode спавнит уровень сам; с включённым —
-            // экземпляр уже лежит в сцене после кнопок << >>, и Init его не трогает.
-            levelManager.Init();
+            int count = levelManager.Levels.Count;
+            if (count == 0)
+            {
+                Debug.LogError("[RichRun] В списке Lvls List нет уровней.", levelManager);
+                return;
+            }
+
+            // Прогресс ведёт Save.Level: у пакета сеттер CurrentLevel сломан
+            // (PlayerPrefs.GetInt вместо SetInt), и его счётчик не сохраняется.
+            // indexCheck: false обходит GetCorrectedIndex, который на двух
+            // и более уровнях возвращает не тот индекс.
+            levelManager.SelectLevel(Save.Level % count, false);
 
             var info = levelManager.GetComponentInChildren<LevelInfo>();
             if (!info)

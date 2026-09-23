@@ -26,6 +26,10 @@ namespace RichRun
         [SerializeField] RuntimeAnimatorController[] tierControllers;
 
         [Header("Эффекты")]
+        [Tooltip("Дочерние системы частиц на самом персонаже. Не префабы из Project: " +
+                 "привязанный эффект не отстаёт от бегущего игрока.")]
+        [SerializeField] ParticleSystem collectVfx;
+        [SerializeField] ParticleSystem hitVfx;
         [SerializeField] ParticleSystem tierUpVfx;
         [SerializeField] AudioClip tierUpSfx;
         [Tooltip("Индекс = индекс ступени. Если ступеней больше — берётся последний набор.")]
@@ -33,6 +37,7 @@ namespace RichRun
 
         static readonly int SpeedHash = Animator.StringToHash("Speed");
         static readonly int TierHash = Animator.StringToHash("Tier");
+        static readonly int TierUpHash = Animator.StringToHash("TierUp");
         static readonly int HitHash = Animator.StringToHash("Hit");
         static readonly int WinHash = Animator.StringToHash("Win");
 
@@ -40,11 +45,13 @@ namespace RichRun
         int _tier;
         int _step;
         bool _animated;
+        bool _hasSpeed, _hasTier, _hasTierUp, _hasHit, _hasWin;
 
         void Start()
         {
             // Без контроллера Animator ругается на каждый SetFloat — проверяем один раз.
             _animated = animator && animator.runtimeAnimatorController;
+            CacheParameters();
 
             _game = GameManager.Instance;
             _game.StateChanged += OnStateChanged;
@@ -61,12 +68,31 @@ namespace RichRun
             _game.TierChanged -= OnTierChanged;
         }
 
+        /// <summary>
+        /// Контроллер можно собирать по частям: чего в нём нет, то и не трогаем.
+        /// Иначе Unity пишет предупреждение на каждый вызов с чужим именем.
+        /// </summary>
+        void CacheParameters()
+        {
+            _hasSpeed = _hasTier = _hasTierUp = _hasHit = _hasWin = false;
+            if (!_animated) return;
+
+            foreach (var parameter in animator.parameters)
+            {
+                if (parameter.nameHash == SpeedHash) _hasSpeed = true;
+                else if (parameter.nameHash == TierHash) _hasTier = true;
+                else if (parameter.nameHash == TierUpHash) _hasTierUp = true;
+                else if (parameter.nameHash == HitHash) _hasHit = true;
+                else if (parameter.nameHash == WinHash) _hasWin = true;
+            }
+        }
+
         void OnStateChanged(GameState state)
         {
             // Контроллера может ещё не быть: модель уже стоит, а анимаций нет.
             if (!_animated) return;
-            animator.SetFloat(SpeedHash, state == GameState.Running ? 1f : 0f);
-            if (state == GameState.Finished) animator.SetTrigger(WinHash);
+            if (_hasSpeed) animator.SetFloat(SpeedHash, state == GameState.Running ? 1f : 0f);
+            if (_hasWin && state == GameState.Finished) animator.SetTrigger(WinHash);
         }
 
         void OnTierChanged(int tier) => ApplyTier(tier, true);
@@ -82,9 +108,11 @@ namespace RichRun
                 if (outfits[i]) outfits[i].SetActive(i == outfit);
 
             SwapController(tier);
-            if (_animated) animator.SetInteger(TierHash, tier);
+            if (_hasTier) animator.SetInteger(TierHash, tier);
 
             if (!celebrate) return;
+
+            if (_hasTierUp) animator.SetTrigger(TierUpHash);
             if (tierUpVfx) Vfx.Play(tierUpVfx, transform.position);
             Sfx.Play(tierUpSfx);
         }
@@ -100,11 +128,19 @@ namespace RichRun
             animator.runtimeAnimatorController = next;
             animator.Play(state.shortNameHash, 0, state.normalizedTime % 1f);
             _animated = true;
+            CacheParameters();   // у нового контроллера может быть другой набор
+        }
+
+        /// <summary>Подобрал деньги: вспышка искр на самом персонаже.</summary>
+        public void PlayCollect()
+        {
+            if (collectVfx) collectVfx.Play(true);
         }
 
         public void PlayHit()
         {
-            if (_animated) animator.SetTrigger(HitHash);
+            if (_hasHit) animator.SetTrigger(HitHash);
+            if (hitVfx) hitVfx.Play(true);
         }
 
         /// <summary>Вызывается Animation Event'ом на кадрах касания стопы.</summary>

@@ -32,15 +32,27 @@ namespace RichRun
             if (_instance == this) _instance = null;
         }
 
+        static bool _warned;
+
         public static void Play(ParticleSystem prefab, Vector3 position)
         {
             if (!prefab) return;
 
             if (_instance == null)
             {
-                Instantiate(prefab, position, prefab.transform.rotation);
+                if (!_warned)
+                {
+                    _warned = true;
+                    Debug.LogWarning("[RichRun] В сцене нет компонента Vfx — эффекты играют " +
+                                     "без пула. Повесь Vfx на объект Systems.");
+                }
+
+                // Без пула объект никто не заберёт, поэтому убираем его по таймеру.
+                var solo = Instantiate(prefab, position, prefab.transform.rotation);
+                Destroy(solo.gameObject, 5f);
                 return;
             }
+
             _instance.Spawn(prefab, position);
         }
 

@@ -17,9 +17,13 @@ namespace RichRun
         {
             GameManager.Instance.AddWealth(value);
 
+            // Необязательный эффект на месте пикапа. Вспышка на самом персонаже
+            // живёт отдельно, дочерней системой на нём же — иначе она отстаёт.
             if (vfx) Vfx.Play(vfx, transform.position);
             Sfx.Play(sfx);
+
             if (value < 0) player.Visual.PlayHit();
+            else player.Visual.PlayCollect();
 
             // Гасим только визуал и коллайдер — объект остаётся частью статичного уровня.
             if (visual) visual.SetActive(false);
